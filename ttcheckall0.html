@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+h1 {
+    font-family: arial, sans-serif;
+    border-collapse: collapse;
+    width: 100%;
+}
+table {
+    font-family: arial, sans-serif;
+    border-collapse: collapse;
+    width: 100%;
+}
+p {
+    font-family: arial, sans-serif;
+	font-weight: bold;
+    border-collapse: collapse;
+    width: 100%;
+}
+td, th {
+    border: 1px solid #dddddd;
+    text-align: left;
+    padding: 8px;
+}
+tr:nth-child(even) {
+    background-color: #dddddd;
+}
+</style>
+</head>
+<body>
+<h1>Truth Table</h1>
+<table id='kb'>
+  <tr>
+    <th>A</th>
+    <th>B</th>
+    <th>C</th>
+	<th>nC</th>
+	<th>A v B</th>
+	<th>nC v A</th>
+	<th>KB</th>
+  </tr>
+</table>
+
+<p> Result query A in KB: A and C</p><p id='result1'>Result 1</p>
+<p> Result query B in KB: A or B or C</p><p id='result2'>Result 2</p>
+
+<script>
+'use strict';
+
+var kb = { // KB object, serves as prototype for all models and query
+   'sentence': [],
+   'tt': []
+}
+// define knowledge base
+kb.sentence = ['A', 'B', 'C', 'nC', 'A v B', 'nC v A', 'KB'];
+kb.tt[0] = [false, false, false, false, true, true, true, true]; // A
+kb.tt[1] = [false, false, true, true, false, false, true, true]; // B
+kb.tt[2] = [false, true, false, true, false, true, false, true]; // C
+kb.tt[3] = new Array(8);
+kb.tt[4] = new Array(8);
+kb.tt[5] = new Array(8);
+kb.tt[6] = new Array(8);
+
+for ( var i = 0; i<8; i++ ) {
+	kb.tt[3][i] = !kb.tt[2][i]; // not C
+	kb.tt[4][i] = kb.tt[0][i] || kb.tt[1][i]; // A v B
+	kb.tt[5][i] = kb.tt[3][i] || kb.tt[0][i]; // nC v A
+	kb.tt[6][i] = kb.tt[3][i] && kb.tt[4][i]; // KB = AvB and nCvA
+}
+
+var table = document.getElementById("kb");
+for ( var i = 0; i<8; i++ ) {
+	var row = table.insertRow(i + 1);
+	var cell0 = row.insertCell(0);
+	var cell1 = row.insertCell(1);
+	var cell2 = row.insertCell(2);
+	var cell3 = row.insertCell(3);
+	var cell4 = row.insertCell(4);
+	var cell5 = row.insertCell(5);
+	var cell6 = row.insertCell(6);
+	cell0.innerHTML = kb.tt[0][i].toString();
+	cell1.innerHTML = kb.tt[1][i].toString();
+	cell2.innerHTML = kb.tt[2][i].toString();
+	cell3.innerHTML = kb.tt[3][i].toString();
+	cell4.innerHTML = kb.tt[4][i].toString();
+	cell5.innerHTML = kb.tt[5][i].toString();
+	cell6.innerHTML = kb.tt[6][i].toString();
+}
+
+var a = { // query a
+   'sentence': [],
+   'tt': []
+}
+// define query
+a.sentence = ['A', 'C', 'A and C'];
+a.tt[0] = [false, false, true, true]; // A
+a.tt[1] = [false, true, false, true]; // C
+a.tt[2] = [false, false, false, true]; // A and C
+
+var b = { // query b
+   'sentence': [],
+   'tt': []
+}
+// define query
+b.sentence = ['A', 'B', 'C', 'A or B or C'];
+b.tt[0] = [false, false, false, false, true, true, true, true]; // A
+b.tt[1] = [false, false, true, true, false, false, true, true]; // B
+b.tt[2] = [false, true, false, true, false, true, false, true]; // C
+b.tt[3] = [false, true, true, true, true, true, true, true]; // A or B or C
+
+var symbols = ['A', 'B', 'C']; // symbols forming sentences
+
+var mymodel = { // model
+   'sentence': [],
+   'tt': []
+}
+
+document.getElementById("result1").innerHTML = pltrue(a, kb);
+document.getElementById("result2").innerHTML = pltrue(b, kb);
+
+function ttcheckall(KB, a, symbols, model) {
+	if ( symbols.length == 0 ) {
+		//if ( pltrue(KB, model) ) 	// for first impl take this out
+									// (model always from KB, we are working with a full KB (all combinations of symbols))
+			return pltrue(a, model);
+		//else
+			//return true;
+	} else {
+		p=symbols.slice( 0, 1 ); // first element of symbols
+		rest=symbols.shift(); // rest of the symbols
+		var modt = Object.create(kb);
+		var modf = Object.create(kb);
+		modt = extend(p, true);
+		modf = extend(p, false);
+		return (ttcheckall(KB, a, rest, modt) && ttcheckall(KB, a, rest, modf));
+	}
+}
+
+function pltrue(sentence, model) { // pltrue - returns true if a sentence holds within a model
+	// so we read out all atomic symbols from the sentence and access the corresponding KB-lines
+	// then we compare the KB-result in that line with the sentence result for the same atomic symbol combination
+	// need to check: Is S true for all assignments for which KB is true?
+	// e.g. A=false, C=true -> KB has 2 lines for that (lines 1 and 3), KB is false for both; A and C = false -> sentence holds in KB
+	var kbCandidates = []; // indices for candidate lines from KB
+	
+	var sentLength = sentence.sentence.length - 1;
+	var modelLength = model.sentence.length - 1;
+	//console.log( typeof sentLength + ' ' + sentLength)
+	var lenS = Math.pow(2, sentLength);
+	var lenM = Math.pow(2, modelLength);
+	
+	for(var tS=0; tS<lenS; tS++) {
+		var sentTTline = [];
+		// build the line of the truth table for the sentence
+		for ( var iS=0; iS<sentLength; iS++) { // atomic symbols in sentence
+			sentTTline.push(sentence.tt[iS][tS]);
+		}
+		// check if that lines appears in the model
+		for (var iM=0; iM<lenM; iM++) {
+			var mlinefound = true;
+			for ( var iS=0; iS<sentLength; iS++) { // over all symbols in sentence
+				var symbKB = model.sentence.findIndex(function(cVal) { // find index of the sentence symbol in KB
+						return ( this == cVal );
+					}, sentence.sentence[iS]);
+				if ( sentTTline[iS] != model.tt[symbKB][iM] ) {
+					mlinefound = false;
+					break;
+				}
+			}
+			if ( mlinefound ) { // found a line in the TT of the model that matches the current sentence TT-line
+				// need to check for truth value of sentence and model: model true -> sentence true ?
+				// model = false is not relevant (model ist a "subset" of sentence)
+				console.log('model: ' + model.tt[modelLength][iM]);
+				console.log('S ' + sentence.tt[sentLength][tS]);
+				if ( model.tt[modelLength][iM] && !sentence.tt[sentLength][tS] ) return false;
+			}
+		}
+	}
+	return true;
+}
+
+function extend(p, tf) { // extend - returns new partial model in which p has value true
+	var model = Object.create(kb); // a model
+	// go into KB with p and look for p=t (or p=f)
+	// p is atomic, so first find position in kb.sentence, then use this position index to readout the truth table of KB
+	var i = kb.sentence.findIndex(function(cVal) {
+		return ( this == cVal );
+	}, p);
+	if ( i >= 3 || i == -1) return model; // only atomic symbols checked )in kb till index 3
+	model.sentence.push(kb.sentence[i]);
+	model.tt[0] = kb.tt[i].slice(0);
+	return model;
+}
+
+/*
+function ttentails(KB, a) returns true or false
+	KB knowledge base
+	a a query
+	symbols=a list of proposition symbols in KB and a
+	return ttcheckall(KB, a, symbols, [])
+model - a partial model, assignment to only some of the variables
+*/
+
+
+</script>
+
+</body>
+</html>
