@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+</head>
+<body>
+
+CNF converter
+
+<script>
+"use strict";
+
+// CNF converter (see Russel/Norvig)
+// v - or, & - and, -> <- - implication, <-> - bijection, ! - not
+
+console.log('remBij ' + remBij("(AvB)<->(B&P)"));
+console.log('repImp ' + repImp("(A&P)->B"));
+console.log('deMorgAnd ' + deMorgAnd("!(A&B)"));
+console.log('deMorgOr ' + deMorgOr("!(AvB)"));
+console.log('remNotnot ' + remNotnot("A->!!(A&P)"));
+console.log('distrOr ' + distrOr("Cv(A&B)"));
+
+//console.log(resolvePar("AB(((sdsdsa()s(ds)d)))sdasdd", 2));
+
+function resolvePar(sentence, strtPos) { // returns expression in paranthesis from starting position 
+	var mySent = sentence.slice(strtPos);
+	var lastPar = mySent.search(/\(/);
+	var parCt = 0;
+	while ( lastPar > -1 ) {
+		mySent = mySent.slice( lastPar + 1, sentence.length );
+		lastPar = mySent.search(/\(/);
+		parCt++;
+	}
+	mySent = sentence.slice(strtPos);
+	lastPar = mySent.search(/\)/);
+	var lastCpar = lastPar;
+	while ( parCt > 0 ) {
+		mySent = mySent.slice( lastPar + 1, sentence.length );
+		lastPar = mySent.search(/\)/);
+		if ( lastPar < 0 && parCt > 1 ) return -1; // more ( than ) -> malformed
+		lastCpar += lastPar + 1;
+		parCt--;
+	}
+	if ( lastPar >= 0 && parCt == 0 ) return -1; // more ) than ( -> malformed
+	return sentence.slice(strtPos, strtPos + lastCpar + 1);
+}
+
+function remBij(sent) { // remove bijection
+	if ( sent.search(/<->/) < 0 ) return sent; // no change
+	var clA = sent.slice( 0, sent.search(/<->/) );
+	var clB = sent.slice( sent.search(/<->/) + 3, sent.length );
+	return "(" + clA + "->" + clB + ")&(" + clB + "->" + clA + ")";
+}
+
+function repImp(sent) { // replace implications
+	if ( sent.search(/->/) < 0 ) return sent; // no change
+	var clA = sent.slice( 0, sent.search(/->/) );
+	var clB = sent.slice( sent.search(/->/) + 2, sent.length );
+	return "!" + clA + "v" + clB;
+}
+
+// deMorgan only atomic for now
+
+function deMorgAnd(sent) { // DeMorgan and
+	if ( sent.search(/!\(/) < 0 || sent.search("&") < 0 ) return sent; // no change
+	if ( sent.charAt(sent.search(/!\(/) + 2) == '(' ) {
+		// need to iteratively resolve all paranthesis till we find the last one before the &
+		var clA = resolvePar(sent, sent.search(/!\(/) + 2);
+	} else
+		var clA = sent.slice( sent.search(/!\(/) + 2, sent.search("&") );
+	if ( sent.charAt(sent.length - 2) == ')' ) {
+		// need to iteratively resolve all paranthesis till we find the last one before the final )
+		var clB = resolvePar(sent, sent.search("&") + 1);
+	} else
+		var clB = sent.slice( sent.search("&") + 1, sent.search(/\)/) );
+	return "(!" + clA + "v" + "!" + clB + ")";
+}
+
+function deMorgOr(sent) { // DeMorgan or
+	if ( sent.search(/!\(/) < 0 || sent.search("v") < 0 ) return sent; // no change
+	var clA = sent.slice( sent.search(/!\(/) + 2, sent.search("v") );
+	var clB = sent.slice( sent.search("v") + 1, sent.search(/\)/) );
+	return "(!" + clA + "&" + "!" + clB + ")";
+}
+
+function remNotnot(sent) { // remove notnots
+	if ( sent.search("!!") < 0 ) return sent; // no change
+	var clA = sent.slice( 0, sent.search("!!") );
+	var clB = sent.slice( sent.search("!!") + 2, sent.length );
+	return clA + clB;
+}
+
+function distrOr(sent) { // distribute or
+	if ( sent.search("v") < 0 ) return sent; // no change
+	var clA = sent.slice( 0, sent.search("v") );
+	var clB = sent.slice( sent.search("v") + 1, sent.length );
+	console.log(clB);
+	var clC = clB.slice( clB.search("&") - 1, clB.search("&") );
+	var clD = clB.slice( clB.search("&") + 1 , clB.search("&") + 2 );
+	return "(" + clA + "v" + clC + ")&(" + clA + "v" + clD + ")";
+}
+
+</script>
+<p><strong>Note:</strong> xxxx </p>
+</body>
+</html>
