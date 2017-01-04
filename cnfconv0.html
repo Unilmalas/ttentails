@@ -13,15 +13,16 @@ CNF converter
 // CNF converter (see Russel/Norvig)
 // v - or, & - and, -> <- - implication, <-> - bijection, ! - not
 
-//console.log('remBij ' + remBij("(AvB)<->(B&P)"));
-//console.log('repImp ' + repImp("(A&P)->B"));
-console.log('deMorgAnd ' + deMorgAnd("!((AvC)&B)"));
-//console.log('deMorgOr ' + deMorgOr("!(AvB)"));
-//console.log('remNotnot ' + remNotnot("A->!!(A&P)"));
-//console.log('distrOr ' + distrOr("Cv(A&B)"));
+console.log('remBij ' + remBij("(AvB)<->(B&P)"));
+console.log('repImp ' + repImp("(A&P)->B"));
+console.log('deMorgAnd ' + deMorgAnd("!((AvC)&(BvD))"));
+console.log('deMorgOr ' + deMorgOr("!((AvC)v(BvD))"));
+console.log('remNotnot ' + remNotnot("A->!!(A&P)"));
+console.log('distrOr ' + distrOr("Cv(A&B)"));
 
 //console.log(resolvePar("AB(((sdsdsa()s(ds)d)))sdasdd", 2));
 //console.log(findEndp("AB(((sdsdsa()s(ds)d)))sdasdd", 2));
+//console.log(findEndp("!((AvC)&B)", 3));
 
 function resolvePar(sentence, strtPos) { // returns expression in paranthesis from starting position 
 	var mySent = sentence.slice(strtPos);
@@ -52,15 +53,17 @@ function findEndp(sentence, strtPos) { // returns expression in paranthesis from
 	var currLvl = 0;
 	while (currPos < slen) {
 		var currChar = sentence.charAt(currPos);
+		//console.log(currChar + ' -- ' + currLvl);
 		if ( currChar == '(' ) currLvl++;
 		else if ( currChar == ')' ) {
 			currLvl--;
 			var lastCpar = currPos;
+			if (currLvl == 0) break;
 		}
 		currPos++;
 	}
-	if ( currLvl > 0 ) return -1; // malformed: ( and ) do not balance
-	return sentence.slice(strtPos, lastCpar + 1);
+	//if ( currLvl > 0 ) return -1; // malformed: ( and ) do not balance
+	return lastCpar; // returns position of last closing paranthesis
 }
 
 function remBij(sent) { // remove bijection
@@ -83,25 +86,37 @@ function deMorgAnd(sent) { // DeMorgan and
 	if ( sent.search(/!\(/) < 0 || sent.search("&") < 0 ) return sent; // no change (no not or no and)
 	if ( sent.charAt(sent.search(/!\(/) + 2) == '(' ) {
 		// need to iteratively resolve all paranthesis till we find the last one before the &
-		var clA = findEndp(sent, sent.search(/!\(/) + 2);
-		var mainAndpos = sent.search(/!\(/) + 2 + clA.length + 1;
-		console.log('deM ' + mainAndpos + ' :: ' + sent.split(mainAndpos, sent.length));
+		var mainAndpos = findEndp(sent, sent.search(/!\(/) + 2) + 1;
+		var clA = sent.substr((sent.search(/!\(/) + 2), mainAndpos - 2);
+		//console.log('sent ' + sent + ' deM ' + sent.split(2,7) + ' :: ' + clA);
 	} else {
-		var clA = sent.slice( sent.search(/!\(/) + 2, sent.search("&") );
+		var clA = sent.substr( sent.search(/!\(/) + 2, sent.search("&") );
 		var mainAndpos = sent.search("&");
 	}
 	if ( sent.charAt(sent.length - 2) == ')' ) {
 		// need to iteratively resolve all paranthesis till we find the last one before the final )
-		var clB = resolvePar(sent, mainAndpos);
+		var clB = sent.substr(mainAndpos + 1, sent.length - mainAndpos - 2);
+		//console.log('sent ' + sent + ' deM ' + mainAndpos + ' :: ' + clB);
 	} else
-		var clB = sent.slice( sent.search("&") + 1, sent.search(/\)/) );
+		var clB = sent.substr( sent.search("&") + 1, sent.search(/\)/) );
 	return "(!" + clA + "v" + "!" + clB + ")";
 }
 
 function deMorgOr(sent) { // DeMorgan or
 	if ( sent.search(/!\(/) < 0 || sent.search("v") < 0 ) return sent; // no change
-	var clA = sent.slice( sent.search(/!\(/) + 2, sent.search("v") );
-	var clB = sent.slice( sent.search("v") + 1, sent.search(/\)/) );
+	if ( sent.charAt(sent.search(/!\(/) + 2) == '(' ) {
+		// need to iteratively resolve all paranthesis till we find the last one before the v
+		var mainOrpos = findEndp(sent, sent.search(/!\(/) + 2) + 1;
+		var clA = sent.substr((sent.search(/!\(/) + 2), mainOrpos - 2);
+	} else {
+		var clA = sent.substr( sent.search(/!\(/) + 2, sent.search("v") );
+		var mainOrpos = sent.search("v");
+	}
+	if ( sent.charAt(sent.length - 2) == ')' ) {
+		// need to iteratively resolve all paranthesis till we find the last one before the final )
+		var clB = sent.substr(mainOrpos + 1, sent.length - mainOrpos - 2);
+	} else
+		var clB = sent.substr( sent.search("v") + 1, sent.search(/\)/) );
 	return "(!" + clA + "&" + "!" + clB + ")";
 }
 
