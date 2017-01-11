@@ -31,6 +31,7 @@ p[14] = new node("nm a", 0.01, p[10]);
 
 console.log(p[8]);
 console.log(calcPvars("a b ne"));
+console.log(yHasyine("a b ne", p[5]));
 
 // query: P(burglary|j calls = true, m calls = true)
 // P(burg|j,m call) = a P(burg, j calls, m calls) = a sum over earth and alarm (hidden vars): P(burg, earth, alarm, j calls, m calls)
@@ -43,6 +44,12 @@ function enumAll(vars, e) {
 	if ( Y has value y in e ) return P(y|parents(Y)) * enumAll(vars, e);
 	else sum over y: P(y|parents(Y)) * enumAll(vars, ey); (ey is e extended with Y=y)
 }*/
+
+function yHasyine(y, e) { // returns true if Y has value y in e, otherwise false
+	var nodesIne = findVar(y, e);
+	if ( nodesIne.length > 0 ) return true;
+	return false;
+}
 
 function pYparents(y) {
 	return y.parent; // might be more than 1 - change!! - for now: only 1 parent
