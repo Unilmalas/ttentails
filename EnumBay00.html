@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+<body>
+
+<script>
+"use strict";
+
+/*var node = {
+	variable: "node",
+	pval: 1.0,
+	parent: null // need to cover more than 1 - for now only 1
+}*/
+
+// example Russel/Norvig pg. 506 fig 14.8
+var p = [];
+p[0] = new node("b", 0.001);
+p[1] = new node("e", 0.002, p[0]);
+p[2] = new node("ne", 0.998, p[0]);
+p[3] = new node("a b e", 0.95, p[1]);
+p[4] = new node("na b e", 0.05, p[1]);
+p[5] = new node("a b ne", 0.94, p[2]);
+p[6] = new node("na b ne", 0.06, p[2]);
+p[7] = new node("j a", 0.90, p[3]);
+p[8] = new node("nj a", 0.05, p[3]);
+p[9] = new node("j a", 0.90, p[5]);
+p[10] = new node("nj a", 0.05, p[5]);
+p[11] = new node("m a", 0.70, p[7]);
+p[12] = new node("nm a", 0.01, p[8]);
+p[13] = new node("m a", 0.70, p[9]);
+p[14] = new node("nm a", 0.01, p[10]);
+
+console.log(p[8]);
+console.log(calcPvars("a b ne"));
+
+// query: P(burglary|j calls = true, m calls = true)
+// P(burg|j,m call) = a P(burg, j calls, m calls) = a sum over earth and alarm (hidden vars): P(burg, earth, alarm, j calls, m calls)
+// Bayesian network:
+// P(burg|j,m call) = a sum over earth and alarm: P(burg) P(earth|burg) P(alarm|burg, earth) P(j calls|alarm) P(m calls| alarm)
+/*
+function enumAll(vars, e) {
+	if ( vars.length == 0 ) return 1.0;
+	y = vars.shift(); // remove first item from vars and return it; Y...hidden variables
+	if ( Y has value y in e ) return P(y|parents(Y)) * enumAll(vars, e);
+	else sum over y: P(y|parents(Y)) * enumAll(vars, ey); (ey is e extended with Y=y)
+}*/
+
+function pYparents(y) {
+	return y.parent; // might be more than 1 - change!! - for now: only 1 parent
+}
+
+function calcPvars(variable) {
+	var retnodes = findVar(variable, p);
+	var retpval = 1.0;
+	for ( var i=0; i<retnodes.length; i++ ) { // find nodes via variable names, always variable and corresponding not-var
+		retpval *= pYparents(retnodes[i]).pval;
+	}
+	if ( retnodes.length > 0 ) return retpval;
+	else return -1;	
+}
+
+function findVar(variable, nodes) {
+	var retnodes = [];
+	for ( var i=0; i<nodes.length; i++ ) { // find nodes via variable names, always variable and corresponding not-var
+		if (nodes[i].variable == variable ) retnodes.push(nodes[i]);
+		//if (nodes[i].variable == ("n" + variable) ) retnodes.push(nodes[i]);
+	}
+	if ( retnodes.length > 0 ) return retnodes;
+	else return -1;
+}
+
+function node(variable, pval, parent) {
+	this.variable = variable;
+	this.pval = pval;
+	if ( parent != null ) this.parent = parent;
+}
+
+function randRg(min, max) {
+    return Math.random() * (max - min) + min;
+}
+
+function randSg(min, max) {
+    return Math.sign(Math.random() * (max - min) + min);
+}
+
+// Standard Normal variate using Box-Muller transform, mean 0, variance 1
+function randn_bm() {
+    var u = 1 - Math.random(); // Subtraction to flip [0, 1) to (0, 1].
+    var v = 1 - Math.random();
+    return Math.sqrt( -2.0 * Math.log( u ) ) * Math.cos( 2.0 * Math.PI * v );
+}
+
+function myRand(min, max) {
+	return ( min + ( max - min ) * Math.random() );
+}
+
+</script>
+<p><strong>Note:</strong> Treetest </p>
+</body>
+</html>
