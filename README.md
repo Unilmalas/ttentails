@@ -1,2 +1,2 @@
 # ttentails
-example for TT-Entails from Russel/Norvig: AI
+example for TT-Entails and Bayesian Networks from Russel/Norvig: AI
