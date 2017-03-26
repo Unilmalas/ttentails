@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+p, li {
+    font-family: Arial, Helvetica, sans-serif;
+}
+</style>
+</head>
+<body>
+
+<p>Statistical Modeling: Weather Example</p>
+
+<button onclick="StatMod()">Try it</button>
+
+<ul id="ruleList">
+</ul>
+
+<script>
+"use strict";
+
+// test statistical modeling (Witten et al. pg 10, 90 ff.)
+
+// attribute and class table class
+function attLine(classname, classval) {
+	this.attName = [];
+	this.attVal = [];
+	this.className = classname;
+	this.classVal = classval;
+	
+	this.addAttr = function (name, val) {
+        this.attName.push(name);
+		this.attVal.push(val);
+    };
+}
+
+// rules table class: attribute - attribute value - class value - class count
+function ruleLine(attname, attval, classval, classcount) {
+	this.attName = attname;
+	this.attVal = attval;
+	this.classVal = classval;
+	this.classCount = classcount;
+	
+	this.setClassCount = function (classcount) {
+		this.classCount = classcount;
+	}
+	
+	this.incClassCount = function () {
+		this.classCount++;
+	}
+}
+
+var attLine0 = new Array(); // Weather attribute and class table
+var ruleLine0 = new Array(); // rules derived from attribute data
+
+var weatherAttr = ['Outlook', 'Temperature', 'Humidity', 'Windy', 'Play']; // note: last attribute is the class
+var outlook = ['sunny', 'sunny', 'overc', 'rainy', 'rainy', 'rainy', 'overc', 'sunny', 'sunny', 'rainy', 'sunny', 'overc', 'overc', 'rainy']; // s-sunny, o-overcast, r-rainy
+var temperature = ['hi', 'hi', 'hi', 'mid', 'cld', 'cld', 'cld', 'mid', 'cld', 'mid', 'mid', 'mid', 'hi', 'mid']; // h-hot, m-mild, c-cold
+var humidity = ['hi', 'hi', 'hi', 'hi', 'norm', 'norm', 'norm', 'hi', 'norm', 'norm', 'norm', 'hi', 'norm', 'hi']; // h-high, n-normal
+var windy = ['f', 't', 'f', 'f', 'f', 't', 't', 'f', 'f', 'f', 't', 't', 'f', 't']; // t-true, f-false
+
+var play = ['no', 'no', 'yes', 'yes', 'yes', 'no', 'yes', 'no', 'yes', 'yes', 'yes', 'yes', 'yes', 'no']; // n-no, y-yes
+
+function fillWeather() { // fill attribute table with the Weather data from page 10
+	
+	var nattr = weatherAttr.length;
+	var nattrvals = outlook.length;
+	
+	for ( var i=0; i<nattrvals; i++ ) {
+		attLine0.push(new attLine(weatherAttr[nattr], play[i]));
+		attLine0[i].addAttr(weatherAttr[0], outlook[i]);
+		attLine0[i].addAttr(weatherAttr[1], temperature[i]);
+		attLine0[i].addAttr(weatherAttr[2], humidity[i]);
+		attLine0[i].addAttr(weatherAttr[3], windy[i]);
+	}
+	//console.log(JSON.stringify(attLine0));
+}
+
+// statistical modeling
+function statMod() {
+
+	var nattr = weatherAttr.length - 1; // last "attribute" is the class
+	var nattrvals = outlook.length;
+	
+	for ( var i=0; i<nattr; i++ ) { // for each attribute
+		for ( var j=0; j<nattrvals; j++ ) { // for each value of that attribute
+			// count how often class appears, find most frequent class, assign class to that attribute value
+			var indatt = srchRuleAttVal(attLine0[j].attName[i], attLine0[j].attVal[i]); // attribute and attribute value already in rule table?
+			if ( indatt < 0 ) { // not found
+				ruleLine0.push(new ruleLine(attLine0[j].attName[i], attLine0[j].attVal[i], attLine0[j].classVal, 1)); // add rule to rule table
+			} else { // found attribute and attribute value in rule table
+				if ( ruleLine0[indatt].classVal == attLine0[j].classVal ) { // current class value already in rule table?
+					ruleLine0[indatt].incClassCount(); // if yes, increment count
+				} else { // add rule with new class value
+					var indattclass = srchRuleClassVal(attLine0[j].attName[i], attLine0[j].attVal[i], attLine0[j].classVal);
+					if ( indattclass < 0 ) // not found
+						ruleLine0.push(new ruleLine(attLine0[j].attName[i], attLine0[j].attVal[i], attLine0[j].classVal, 1)); // otherwise add entry
+					else // found attribute, attribute value and class value
+						ruleLine0[indattclass].incClassCount(); // increment count
+				}
+			}
+		}
+	}
+	//console.log(JSON.stringify(ruleLine0));
+	
+	// compute likelihood for yes/no
+	var attclsum = 0;
+	var rllen = ruleLine0.length;
+	for ( var i=0; i<rllen; i++ ) { // for each attribute and class value add a totals line with number of yes and no's
+		if ( hasNoTotal(ruleLine0[i].attName, ruleLine0[i].classVal) ) {
+			attclsum = calcClassTotals(ruleLine0[i].attName, ruleLine0[i].classVal);
+			if ( attclsum > 0 ) {
+				ruleLine0.push(new ruleLine(ruleLine0[i].attName, 'total', ruleLine0[i].classVal, attclsum)); // add a totals entry
+			}
+		}
+	}
+	//console.log(JSON.stringify(ruleLine0));
+	// now everything needed is in ruleLine0: counts by attribute and class and the total as base
+	
+	// encountering a new example
+	var newEx0 = {
+		'attName': ['Outlook', 'Temperature', 'Humidity', 'Windy', 'Play'],
+		'attVal': ['sunny', 'cld', 'hi', 't', '?'],
+		'className': 'Play',
+		'classVal': '?'
+	};
+	var likelihoody = 1.0;
+	for ( var i=0; i<4; i++ ) {
+		likelihoody *= (getAttClass(newEx0.attName[i], newEx0.attVal[i], 'yes') / getAttClassTot(newEx0.attName[i], 'yes'));
+	}
+	likelihoody *= getAttClass(newEx0.attName[0], 'total', 'yes') / (getAttClassTot(newEx0.attName[0], 'yes') + getAttClassTot(newEx0.attName[0], 'no'));
+	console.log('likelihood yes: ' + likelihoody);
+	var likelihoodn = 1.0;
+	for ( var i=0; i<4; i++ ) {
+		likelihoodn *= (getAttClass(newEx0.attName[i], newEx0.attVal[i], 'no') / getAttClassTot(newEx0.attName[i], 'no'));
+	}
+	likelihoodn *= getAttClass(newEx0.attName[0], 'total', 'no') / (getAttClassTot(newEx0.attName[0], 'yes') + getAttClassTot(newEx0.attName[0], 'no'));
+	console.log('likelihood no: ' + likelihoodn);
+	console.log('prob yes: ' + likelihoody / (likelihoody+likelihoodn));
+	console.log('prob no: ' + likelihoodn / (likelihoody+likelihoodn));
+}
+
+function srchRuleAttVal(attname, attval) { // search rule table for attribute and attribute value
+	var rllen = ruleLine0.length;
+	for ( var i=0; i<rllen; i++ ) {
+		if( ruleLine0[i].attName == attname && ruleLine0[i].attVal == attval )
+			return i; // found: return index in ruleLine0
+	}
+	return -1; // not found
+}
+
+function srchRuleClassVal(attname, attval, classval) { // search rule table for attribute, attribute value and class value
+	var rllen = ruleLine0.length;
+	for ( var i=0; i<rllen; i++ ) {
+		if( ruleLine0[i].attName == attname && ruleLine0[i].attVal == attval && ruleLine0[i].classVal == classval)
+			return i; // found: return index in ruleLine0
+	}
+	return -1; // not found
+}
+
+function hasNoTotal(attname, classval) { // totals line for attname and classval in ruleLine0?
+	var rllen = ruleLine0.length;
+	for ( var i=0; i<rllen; i++ ) {
+		if( ruleLine0[i].attName == attname && ruleLine0[i].classVal == classval && ruleLine0[i].attVal == 'total' )
+			return false;
+	}
+	return true;
+}
+
+function calcClassTotals(attname, classval) { // calc totals by attribute and by class value
+	var attclsum = 0;
+	var rllen = ruleLine0.length;
+	for ( var i=0; i<rllen; i++ ) {
+		if( ruleLine0[i].attName == attname && ruleLine0[i].classVal == classval )
+			attclsum += ruleLine0[i].classCount;
+	}
+	return attclsum;
+}
+
+function getAttClass(attname, attval, classval) { // get class count for attribute, attribute value and class
+	var rllen = ruleLine0.length;
+	for ( var i=0; i<rllen; i++ ) {
+		if( ruleLine0[i].attName == attname && ruleLine0[i].attVal == attval && ruleLine0[i].classVal == classval )
+			return ruleLine0[i].classCount;
+	}
+	return -1; // not found
+}
+
+function getAttClassTot(attname, classval) { // get total class count for attribute and class
+	var rllen = ruleLine0.length;
+	for ( var i=0; i<rllen; i++ ) {
+		if( ruleLine0[i].attName == attname && ruleLine0[i].attVal == 'total' && ruleLine0[i].classVal == classval )
+			return ruleLine0[i].classCount;
+	}
+	return -1; // not found
+}
+
+function StatMod() {
+	fillWeather();
+	statMod();
+}
+
+</script>
+
+</body>
+</html>
