@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+p, li {
+    font-family: Arial, Helvetica, sans-serif;
+}
+</style>
+</head>
+<body>
+
+<p>Contructing Decision Trees: Weather Example</p>
+
+<button onclick="DecTree()">Try it</button>
+
+<ul id="ruleList">
+</ul>
+
+<script>
+"use strict";
+
+// test decision trees (Witten et al. pg 10, 99 ff.)
+
+// attribute and class table class
+function attLine(classname, classval) {
+	this.attName = [];
+	this.attVal = [];
+	this.className = classname;
+	this.classVal = classval;
+	
+	this.addAttr = function (name, val) {
+        this.attName.push(name);
+		this.attVal.push(val);
+    };
+}
+
+// rules table class: attribute - attribute value - class value - class count
+function ruleLine(attname, attval, classval, classcount) {
+	this.attName = attname;
+	this.attVal = attval;
+	this.classVal = classval;
+	this.classCount = classcount;
+	
+	this.setClassCount = function (classcount) {
+		this.classCount = classcount;
+	}
+	
+	this.incClassCount = function () {
+		this.classCount++;
+	}
+}
+
+var attLine0 = new Array(); // Weather attribute and class table
+var ruleLine0 = new Array(); // rules derived from attribute data
+
+var weatherAttr = ['Outlook', 'Temperature', 'Humidity', 'Windy', 'Play']; // note: last attribute is the class
+var outlook = ['sunny', 'sunny', 'overc', 'rainy', 'rainy', 'rainy', 'overc', 'sunny', 'sunny', 'rainy', 'sunny', 'overc', 'overc', 'rainy']; // s-sunny, o-overcast, r-rainy
+var temperature = ['hi', 'hi', 'hi', 'mid', 'cld', 'cld', 'cld', 'mid', 'cld', 'mid', 'mid', 'mid', 'hi', 'mid']; // h-hot, m-mild, c-cold
+var humidity = ['hi', 'hi', 'hi', 'hi', 'norm', 'norm', 'norm', 'hi', 'norm', 'norm', 'norm', 'hi', 'norm', 'hi']; // h-high, n-normal
+var windy = ['f', 't', 'f', 'f', 'f', 't', 't', 'f', 'f', 'f', 't', 't', 'f', 't']; // t-true, f-false
+
+var play = ['no', 'no', 'yes', 'yes', 'yes', 'no', 'yes', 'no', 'yes', 'yes', 'yes', 'yes', 'yes', 'no']; // n-no, y-yes
+
+function fillWeather() { // fill attribute table with the Weather data from page 10
+	
+	var nattr = weatherAttr.length;
+	var nattrvals = outlook.length;
+	
+	for ( var i=0; i<nattrvals; i++ ) {
+		attLine0.push(new attLine(weatherAttr[nattr], play[i]));
+		attLine0[i].addAttr(weatherAttr[0], outlook[i]);
+		attLine0[i].addAttr(weatherAttr[1], temperature[i]);
+		attLine0[i].addAttr(weatherAttr[2], humidity[i]);
+		attLine0[i].addAttr(weatherAttr[3], windy[i]);
+	}
+	//console.log(JSON.stringify(attLine0));
+}
+
+// decision tree
+function decTree() {
+
+	var nattr = weatherAttr.length - 1; // last "attribute" is the class
+	var nattrvals = outlook.length;
+	
+	for ( var i=0; i<nattr; i++ ) { // for each attribute
+		for ( var j=0; j<nattrvals; j++ ) { // for each value of that attribute
+			// count how often class appears, find most frequent class, assign class to that attribute value
+			var indatt = srchRuleAttVal(attLine0[j].attName[i], attLine0[j].attVal[i]); // attribute and attribute value already in rule table?
+			if ( indatt < 0 ) { // not found
+				ruleLine0.push(new ruleLine(attLine0[j].attName[i], attLine0[j].attVal[i], attLine0[j].classVal, 1)); // add rule to rule table
+			} else { // found attribute and attribute value in rule table
+				if ( ruleLine0[indatt].classVal == attLine0[j].classVal ) { // current class value already in rule table?
+					ruleLine0[indatt].incClassCount(); // if yes, increment count
+				} else { // add rule with new class value
+					var indattclass = srchRuleClassVal(attLine0[j].attName[i], attLine0[j].attVal[i], attLine0[j].classVal);
+					if ( indattclass < 0 ) // not found
+						ruleLine0.push(new ruleLine(attLine0[j].attName[i], attLine0[j].attVal[i], attLine0[j].classVal, 1)); // otherwise add entry
+					else // found attribute, attribute value and class value
+						ruleLine0[indattclass].incClassCount(); // increment count
+				}
+			}
+		}
+	}
+	//console.log(JSON.stringify(ruleLine0));
+	
+	// compute likelihood for yes/no
+	var attclsum = 0;
+	var rllen = ruleLine0.length;
+	for ( var i=0; i<rllen; i++ ) { // for each attribute and class value add a totals line with number of yes and no's
+		if ( hasNoTotal(ruleLine0[i].attName, ruleLine0[i].classVal) ) {
+			attclsum = calcClassTotals(ruleLine0[i].attName, ruleLine0[i].classVal);
+			if ( attclsum > 0 ) {
+				ruleLine0.push(new ruleLine(ruleLine0[i].attName, 'total', ruleLine0[i].classVal, attclsum)); // add a totals entry
+			}
+		}
+	}
+	//console.log(JSON.stringify(ruleLine0));
+	// now everything needed is in ruleLine0: counts by attribute and class and the total as base
+	
+	// approach:
+	// 1 select attribute to place at root node
+	// 2 make a branch for each possible value
+	// 3 determine which attribute to split on
+	// 4 calc info gains and gain ratios
+	// 5 choose split by max info gain / gain ratio
+	
+	// select attribute to place at root node
+	// info gain for each possible attribute
+	sortRulesAttr("", "attName"); // sort ruleLine0 by attName, attVal and classVal
+	sortRulesAttr("attName", "attVal");
+	console.log(JSON.stringify(ruleLine0));
+	
+	var lastatt = "";
+	var infoattv = []; // attribute value
+	var infony = []; // count of yes for attribute value
+	var infonn = []; // count of no for attribute value
+	var needtoaddyn = false;
+	var igain = [];
+	var iattr = [];
+	var rulelen = ruleLine0.length;
+	for ( var i=0; i<rulelen; i++ ) { // for each attribute in sorted list
+		//console.log("attname " + i + " : " + ruleLine0[i].attName);
+		if ( i == 0 ) lastatt = ruleLine0[i].attName;
+
+		if ( lastatt != ruleLine0[i].attName ) { // new attName ?
+			iattr.push(lastatt);
+			lastatt = ruleLine0[i].attName;
+			igain.push(infoGain(infoattv, infony, infonn, info2(infony[infoattv.length-1], infonn[infoattv.length-1])));
+			// reset temp info arrays
+			infoattv = [];
+			infony = [];
+			infonn = [];
+		}
+		
+		// for each attVal in this attName, count yes and no -> info[# of yes, # of no] (ignore totals)
+		// first need to check for complete sets, i.e. yes/no for each attVal
+		if ( infoattv.some( function (cval) {
+			return cval == ruleLine0[i].attVal;
+		}) ) { // already an entry for attVal in infoattv
+			
+		} else { // no entry yet
+			infoattv.push(ruleLine0[i].attVal);
+			// need to see if there is just one entry for the attribute value (e.g. just a yes-entry) - need to add a no (or yes)
+			var countattv = ruleLine0.filter( function (cval) {
+				return cval.attVal == ruleLine0[i].attVal;
+			});
+			if ( countattv.length == 1 ) { // just one entry: need to supplement yes or no (with count 0)
+				needtoaddyn = true;
+			}
+		}
+		
+		if ( ruleLine0[i].classVal == "yes" ) {
+			infony.push(ruleLine0[i].classCount);
+			if ( needtoaddyn ) {
+				infonn.push(0);
+				needtoaddyn = false;
+			}
+		} else {
+			infonn.push(ruleLine0[i].classCount);
+			if ( needtoaddyn ) {
+				infony.push(0);
+				needtoaddyn = false;
+			}
+		}
+		
+		if ( i == rulelen-1 ) { // need to process at end of last attribute block
+			igain.push(infoGain(infoattv, infony, infonn, info2(infony[infoattv.length-1], infonn[infoattv.length-1])));
+			iattr.push(lastatt);
+			// reset temp info arrays
+			infoattv = [];
+			infony = [];
+			infonn = [];
+		}
+	}
+	
+	console.log(iattr);
+	console.log(igain);
+	// choose attribute with max gain (or max gain ratio)
+	var maxgain = 0;
+	var imax = 0;
+	rulelen = iattr.length;
+	for ( var i=0; i<rulelen; i++ ) {
+		if ( igain[i] > maxgain ) {
+			maxgain = igain[i];
+			imax = i;
+		}
+	}
+	console.log("first branch: " + iattr[imax] + " at " + igain[imax].toPrecision(2));
+	
+	needtoaddyn = false;
+	var maxatt = iattr[imax];
+	igain = [];
+	iattr = [];
+	rulelen = ruleLine0.length;
+	for ( var i=0; i<rulelen; i++ ) { // for each attribute in sorted list
+		//console.log("attname " + i + " : " + ruleLine0[i].attName);
+		if ( ruleLine0[i].attName == maxatt ) continue;;
+		
+		if ( i == 0 ) lastatt = ruleLine0[i].attName; // ignore root attribute
+
+		if ( lastatt != ruleLine0[i].attName ) { // new attName ?
+			iattr.push(lastatt);
+			lastatt = ruleLine0[i].attName;
+			igain.push(infoGain(infoattv, infony, infonn, info2(infony[infoattv.length-1], infonn[infoattv.length-1])));
+			// reset temp info arrays
+			infoattv = [];
+			infony = [];
+			infonn = [];
+		}
+		
+		// for each attVal in this attName, count yes and no -> info[# of yes, # of no] (ignore totals)
+		// first need to check for complete sets, i.e. yes/no for each attVal
+		if ( infoattv.some( function (cval) {
+			return cval == ruleLine0[i].attVal;
+		}) ) { // already an entry for attVal in infoattv
+			
+		} else { // no entry yet
+			infoattv.push(ruleLine0[i].attVal);
+			// need to see if there is just one entry for the attribute value (e.g. just a yes-entry) - need to add a no (or yes)
+			var countattv = ruleLine0.filter( function (cval) {
+				return cval.attVal == ruleLine0[i].attVal;
+			});
+			if ( countattv.length == 1 ) { // just one entry: need to supplement yes or no (with count 0)
+				needtoaddyn = true;
+			}
+		}
+		
+		if ( ruleLine0[i].classVal == "yes" ) {
+			infony.push(ruleLine0[i].classCount);
+			if ( needtoaddyn ) {
+				infonn.push(0);
+				needtoaddyn = false;
+			}
+		} else {
+			infonn.push(ruleLine0[i].classCount);
+			if ( needtoaddyn ) {
+				infony.push(0);
+				needtoaddyn = false;
+			}
+		}
+		
+		if ( i == rulelen-1 ) { // need to process at end of last attribute block
+			igain.push(infoGain(infoattv, infony, infonn, info2(infony[infoattv.length-1], infonn[infoattv.length-1])));
+			iattr.push(lastatt);
+			// reset temp info arrays
+			infoattv = [];
+			infony = [];
+			infonn = [];
+		}
+	}
+	
+	console.log(iattr);
+	console.log(igain);
+	// choose attribute with max gain (or max gain ratio)
+	var maxgain = 0;
+	var imax = 0;
+	rulelen = iattr.length;
+	for ( var i=0; i<rulelen; i++ ) {
+		if ( igain[i] > maxgain ) {
+			maxgain = igain[i];
+			imax = i;
+		}
+	}
+	console.log("first branch: " + iattr[imax] + " at " + igain[imax].toPrecision(2));
+}
+
+function srchRuleAttVal(attname, attval) { // search rule table for attribute and attribute value
+	var rllen = ruleLine0.length;
+	for ( var i=0; i<rllen; i++ ) {
+		if( ruleLine0[i].attName == attname && ruleLine0[i].attVal == attval )
+			return i; // found: return index in ruleLine0
+	}
+	return -1; // not found
+}
+
+function srchRuleClassVal(attname, attval, classval) { // search rule table for attribute, attribute value and class value
+	var rllen = ruleLine0.length;
+	for ( var i=0; i<rllen; i++ ) {
+		if( ruleLine0[i].attName == attname && ruleLine0[i].attVal == attval && ruleLine0[i].classVal == classval)
+			return i; // found: return index in ruleLine0
+	}
+	return -1; // not found
+}
+
+function hasNoTotal(attname, classval) { // totals line for attname and classval in ruleLine0?
+	var rllen = ruleLine0.length;
+	for ( var i=0; i<rllen; i++ ) {
+		if( ruleLine0[i].attName == attname && ruleLine0[i].classVal == classval && ruleLine0[i].attVal == 'total' )
+			return false;
+	}
+	return true;
+}
+
+function calcClassTotals(attname, classval) { // calc totals by attribute and by class value
+	var attclsum = 0;
+	var rllen = ruleLine0.length;
+	for ( var i=0; i<rllen; i++ ) {
+		if( ruleLine0[i].attName == attname && ruleLine0[i].classVal == classval )
+			attclsum += ruleLine0[i].classCount;
+	}
+	return attclsum;
+}
+
+function getAttClass(attname, attval, classval) { // get class count for attribute, attribute value and class
+	var rllen = ruleLine0.length;
+	for ( var i=0; i<rllen; i++ ) {
+		if( ruleLine0[i].attName == attname && ruleLine0[i].attVal == attval && ruleLine0[i].classVal == classval )
+			return ruleLine0[i].classCount;
+	}
+	return -1; // not found
+}
+
+function getAttClassTot(attname, classval) { // get total class count for attribute and class
+	var rllen = ruleLine0.length;
+	for ( var i=0; i<rllen; i++ ) {
+		if( ruleLine0[i].attName == attname && ruleLine0[i].attVal == 'total' && ruleLine0[i].classVal == classval )
+			return ruleLine0[i].classCount;
+	}
+	return -1; // not found
+}
+
+function sortRulesAttr(fixedprop, prop) { // sort ruleLine0 by property (keeping fixedprop fixed)
+	var rllen = ruleLine0.length;
+    do {
+		var newlen = 0;
+		for (var i=1; i<=rllen-1; i++) {
+			var fixpropset = true;
+			if ( fixedprop != "" ) fixpropset = ruleLine0[i-1][fixedprop] == ruleLine0[i][fixedprop];
+			if ( ruleLine0[i-1][prop] > ruleLine0[i][prop] && fixpropset ) { // objectName[expression] expression must evaluate to property name
+				// swap
+				var temp = ruleLine0[i-1];
+				ruleLine0[i-1] = ruleLine0[i];
+				ruleLine0[i] = temp;
+				newlen = i;
+			}
+		}
+		rllen = newlen;
+    } while ( rllen > 0 );
+}
+
+function infoGain(infoattv, infony, infonn, inforoot) {
+	// run totals by attVal and for entire attName
+	//console.log("att vals: " + infoattv);
+	//console.log("yes: " + infony);
+	//console.log("no: " + infonn);
+	// compute weighted info for all attributes
+	var infoatt = 0;
+	var infolen = infoattv.length;
+	for ( var i=0; i<infolen-1; i++ ) {
+		infoatt += info2(infony[i], infonn[i]) * ( infony[i] + infonn[i] ) / ( infony[infolen-1] + infonn[infolen-1] ); // last array entry has the totals
+		//console.log(infony[i] + " :: " + infonn[i]);
+	}
+	//console.log(infony[infolen-1] + " :: " + infonn[infolen-1]);
+	return inforoot - infoatt;
+}
+
+function info2(a, b) {
+	var ab = a + b;
+	if ( a == 0 || b == 0 ) return 0;	
+	return entro2(a/ab, b/ab);
+}
+
+function info3(a, b, c) {
+	var abc = a + b + c;
+	if ( a == 0 || b == 0 || c==0 ) return 0;	
+	return entro3(a/abc, b/abc, c/abc);
+}
+
+function entro2(p, q) {
+	return (-p * Math.log(p) - q * Math.log(q)) / Math.log(2); // note: log2 for bits!
+}
+
+function entro3(p, q, r) {
+	var qr = q + r;
+	if ( qr == 0 ) return 0;
+	if ( p + qr > 1 ) return -1;
+	return entro2(p, qr) + qr*entro2(q/qr, r/qr);
+}
+
+function DecTree() {
+	fillWeather();
+	decTree();
+}
+
+</script>
+
+</body>
+</html>
