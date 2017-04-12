@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html>
+<body>
+
+<p>Entropy Discretization</p>
+
+split at hours less-equal than: <input type="number" id="hrssplit" value="81">
+
+<button onclick="entDTest()">Try it</button>
+
+
+<canvas id="myCanvas" width="300" height="200" style="border:1px solid #d3d3d3;">
+
+<script>
+"use strict";
+
+function entDTest() {
+	//console.log(JSON.stringify(branch0));
+	var testres0 = new Array();
+
+	/*testres0.push(new testset(4,'n',0));
+	testres0.push(new testset(5,'y',0));
+	testres0.push(new testset(8,'n',0));
+	testres0.push(new testset(12,'y',0));
+	testres0.push(new testset(15,'y',0));*/
+	
+	testres0.push(new testset(64,'y',0));
+	testres0.push(new testset(65,'n',0));
+	testres0.push(new testset(68,'y',0));
+	testres0.push(new testset(69,'y',0));
+	testres0.push(new testset(70,'y',0));
+	testres0.push(new testset(71,'n',0));
+	testres0.push(new testset(72,'n',0));
+	testres0.push(new testset(72,'y',0));
+	testres0.push(new testset(75,'y',0));
+	testres0.push(new testset(75,'y',0));
+	testres0.push(new testset(80,'n',0));
+	testres0.push(new testset(81,'y',0));
+	testres0.push(new testset(83,'y',0));
+	testres0.push(new testset(85,'n',0));
+	
+	var c = document.getElementById("myCanvas");
+	var ctx = c.getContext("2d");
+	// split
+	//var splittemp = document.getElementById("hrssplit").value;
+	var len = testres0.length;
+	var mininf = 1;
+	var mini = len;
+	for ( var i=len-1; i>=0; i-- ) {
+		var splittemp = testres0[i].hours;
+		var splitinfo = splitSet(testres0, splittemp, 0);
+		if (  splitinfo < mininf ) {
+			mininf = splitinfo;
+			mini = i;
+		}
+		console.log("after split: " + splitinfo.toPrecision(3));
+		console.log(JSON.stringify(testres0[i]));
+		if ( i == len-1 )
+			ctx.moveTo( i*20, 100 - splitinfo * 100 );
+		else
+			ctx.lineTo( i*20, 100 - splitinfo * 100 );
+		resetSet(testres0, len-1, 0);
+	}
+	ctx.stroke();
+	console.log("minimum info at " + mini + " with info " + mininf.toPrecision(3) + " and temp " + testres0[mini].hours);
+	splitSet(testres0, testres0[mini].hours, 0);
+	
+	len = mini;
+	mininf = 1;
+	mini = len;
+	for ( var i=len-1; i>=0; i-- ) {
+		var splittemp = testres0[i].hours;
+		var splitinfo = splitSet(testres0, splittemp, 1);
+		if (  splitinfo < mininf ) {
+			mininf = splitinfo;
+			mini = i;
+		}
+		console.log("after split: " + splitinfo.toPrecision(3));
+		console.log(JSON.stringify(testres0[i]));
+		if ( i == len-1 )
+			ctx.moveTo( i*20, 100 - splitinfo * 100 );
+		else
+			ctx.lineTo( i*20, 100 - splitinfo * 100 );
+		resetSet(testres0, len-1, 1);
+	}
+	ctx.stroke();
+	console.log("minimum info at " + mini + " with info " + mininf.toPrecision(3) + " and temp " + testres0[mini].hours);
+	splitSet(testres0, testres0[mini].hours, 1);
+	
+	len = mini;
+	mininf = 1;
+	mini = len;
+	for ( var i=len-1; i>=0; i-- ) {
+		var splittemp = testres0[i].hours;
+		var splitinfo = splitSet(testres0, splittemp, 2);
+		if (  splitinfo < mininf ) {
+			mininf = splitinfo;
+			mini = i;
+		}
+		console.log("after split: " + splitinfo.toPrecision(3));
+		console.log(JSON.stringify(testres0[i]));
+		if ( i == len-1 )
+			ctx.moveTo( i*20, 100 - splitinfo * 100 );
+		else
+			ctx.lineTo( i*20, 100 - splitinfo * 100 );
+		resetSet(testres0, len-1, 2);
+	}
+	ctx.stroke();
+	console.log("minimum info at " + mini + " with info " + mininf.toPrecision(3) + " and temp " + testres0[mini].hours);
+	splitSet(testres0, testres0[mini].hours, 2);
+	
+	len = mini;
+	mininf = 1;
+	mini = len;
+	for ( var i=len-1; i>=0; i-- ) {
+		var splittemp = testres0[i].hours;
+		var splitinfo = splitSet(testres0, splittemp, 3);
+		if (  splitinfo < mininf ) {
+			mininf = splitinfo;
+			mini = i;
+		}
+		console.log("after split: " + splitinfo.toPrecision(3));
+		console.log(JSON.stringify(testres0[i]));
+		if ( i == len-1 )
+			ctx.moveTo( i*20, 100 - splitinfo * 100 );
+		else
+			ctx.lineTo( i*20, 100 - splitinfo * 100 );
+		resetSet(testres0, len-1, 3);
+	}
+	ctx.stroke();
+	console.log("minimum info at " + mini + " with info " + mininf.toPrecision(3) + " and temp " + testres0[mini].hours);
+	splitSet(testres0, testres0[mini].hours, 3);
+}
+
+function splitSet(resarr, splitval, set) {
+	splitleH(resarr, splitval, set, set + 1);
+	var ctresy0 = nResinSet(resarr, 'y', set);
+	var ctresn0 = nResinSet(resarr, 'n', set);
+	var ctresy1 = nResinSet(resarr, 'y', set + 1);
+	var ctresn1 = nResinSet(resarr, 'n', set + 1);
+	console.log("ny " + set + ": " + ctresy0 + " ny " + (set+1) + ": " + ctresy1);
+	var centro0 = info2(ctresy0, ctresn0);
+	var centro1 = info2(ctresy1, ctresn1);
+	var ntot = ctresy0 + ctresn0 + ctresy1 + ctresn1;
+	var infosplit = ( ctresy0 + ctresn0 ) / ntot * centro0 + ( ctresy1 + ctresn1 ) / ntot * centro1;
+	return infosplit;
+}
+
+function testset(hrs, res, set) {
+	this.hours = hrs;
+	this.result = res;
+	this.set = set;
+	
+	this.setSet = function(set) {
+		this.set = set;
+	}
+	
+	this.setSetleH = function(h, set) {
+		if ( this.hours <= h ) this.set = set;
+	}
+}
+
+function resetSet(resarr, len, set) {
+	for ( var i=0; i<len; i++ ) {
+			resarr[i].setSet(set);
+	}
+}
+
+function splitleH(resarr, h, currset, newset) {
+	var len = resarr.length;
+	for ( var i=0; i<len; i++ ) {
+		if ( resarr[i].set == currset )
+			resarr[i].setSetleH(h, newset);
+	}
+}
+
+function nResinSet(resarr, res, set) {
+	var len = resarr.length;
+	var resct = 0;
+	for ( var i=0; i<len; i++ ) {
+		if ( resarr[i].set == set ) { // just check the given set
+			if ( resarr[i].result == res ) resct++;
+		}
+	}
+	return resct;
+}
+
+function nSet(resarr, set) {
+	var len = resarr.length;
+	var resct = 0;
+	for ( var i=0; i<len; i++ ) {
+		if ( resarr[i].set == set ) resct++;
+	}
+	return resct;
+}
+
+function info2(a, b) {
+	var ab = a + b;
+	if ( a == 0 || b == 0 ) return 0;	
+	return entro2(a/ab, b/ab);
+}
+
+function info3(a, b, c) {
+	var abc = a + b + c;
+	if ( a == 0 || b == 0 || c==0 ) return 0;	
+	return entro3(a/abc, b/abc, c/abc);
+}
+
+function entro2(p, q) {
+	return (-p * Math.log(p) - q * Math.log(q)) / Math.log(2); // note: log2 for bits!
+}
+
+function entro3(p, q, r) {
+	var qr = q + r;
+	if ( qr == 0 ) return 0;
+	if ( p + qr > 1 ) return -1;
+	return entro2(p, qr) + qr*entro2(q/qr, r/qr);
+}
+
+</script>
+
+</body>
+</html>
