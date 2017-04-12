@@ -59,11 +59,12 @@ function entDTest() {
 			ctx.moveTo( i*20, 100 - splitinfo * 100 );
 		else
 			ctx.lineTo( i*20, 100 - splitinfo * 100 );
-		resetSet(testres0, len-1, 0);
+		resetSet(testres0, len, 0);
 	}
 	ctx.stroke();
 	console.log("minimum info at " + mini + " with info " + mininf.toPrecision(3) + " and temp " + testres0[mini].hours);
-	splitSet(testres0, testres0[mini].hours, 0);
+	splitleH(testres0, testres0[mini].hours, 0, 1);
+	console.log(JSON.stringify(testres0));
 	
 	len = mini;
 	mininf = 1;
@@ -81,11 +82,12 @@ function entDTest() {
 			ctx.moveTo( i*20, 100 - splitinfo * 100 );
 		else
 			ctx.lineTo( i*20, 100 - splitinfo * 100 );
-		resetSet(testres0, len-1, 1);
+		resetSet(testres0, len, 1);
 	}
 	ctx.stroke();
 	console.log("minimum info at " + mini + " with info " + mininf.toPrecision(3) + " and temp " + testres0[mini].hours);
-	splitSet(testres0, testres0[mini].hours, 1);
+	splitleH(testres0, testres0[mini].hours, 1, 2);
+	console.log(JSON.stringify(testres0));
 	
 	len = mini;
 	mininf = 1;
@@ -103,11 +105,12 @@ function entDTest() {
 			ctx.moveTo( i*20, 100 - splitinfo * 100 );
 		else
 			ctx.lineTo( i*20, 100 - splitinfo * 100 );
-		resetSet(testres0, len-1, 2);
+		resetSet(testres0, len, 2);
 	}
 	ctx.stroke();
 	console.log("minimum info at " + mini + " with info " + mininf.toPrecision(3) + " and temp " + testres0[mini].hours);
-	splitSet(testres0, testres0[mini].hours, 2);
+	splitleH(testres0, testres0[mini].hours, 2, 3);
+	console.log(JSON.stringify(testres0));
 	
 	len = mini;
 	mininf = 1;
@@ -125,11 +128,35 @@ function entDTest() {
 			ctx.moveTo( i*20, 100 - splitinfo * 100 );
 		else
 			ctx.lineTo( i*20, 100 - splitinfo * 100 );
-		resetSet(testres0, len-1, 3);
+		resetSet(testres0, len, 3);
 	}
 	ctx.stroke();
 	console.log("minimum info at " + mini + " with info " + mininf.toPrecision(3) + " and temp " + testres0[mini].hours);
-	splitSet(testres0, testres0[mini].hours, 3);
+	splitleH(testres0, testres0[mini].hours, 3, 4);
+	console.log(JSON.stringify(testres0));
+	
+	len = mini;
+	mininf = 1;
+	mini = len;
+	for ( var i=len-1; i>=0; i-- ) {
+		var splittemp = testres0[i].hours;
+		var splitinfo = splitSet(testres0, splittemp, 4);
+		if (  splitinfo < mininf ) {
+			mininf = splitinfo;
+			mini = i;
+		}
+		console.log("after split: " + splitinfo.toPrecision(3));
+		console.log(JSON.stringify(testres0[i]));
+		if ( i == len-1 )
+			ctx.moveTo( i*20, 100 - splitinfo * 100 );
+		else
+			ctx.lineTo( i*20, 100 - splitinfo * 100 );
+		resetSet(testres0, len, 4);
+	}
+	ctx.stroke();
+	console.log("minimum info at " + mini + " with info " + mininf.toPrecision(3) + " and temp " + testres0[mini].hours);
+	splitleH(testres0, testres0[mini].hours, 4, 5);
+	console.log(JSON.stringify(testres0));
 }
 
 function splitSet(resarr, splitval, set) {
