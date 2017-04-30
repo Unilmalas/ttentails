@@ -67,11 +67,16 @@ for j in xrange(5000):
 print "Result:" + str(l2)
 
 
-# In[10]:
+# In[59]:
 
 r = np.array([[1],[2]])
 s = np.array([[1,3]])
-r * s
+t = r * s
+print t
+print t * t
+u = np.array([[1],[2],[3],[4]])
+v = np.array([[2, 3]])
+print u * v
 
 
 # In[3]:
@@ -768,13 +773,14 @@ print ai0
 print ai1
 
 
-# In[ ]:
+# In[80]:
 
 # pattern recognition deep neural network
 # 1 input layer, 3 hidden layer, 1 output layer
 # am - wml - al - wlk - ak - wkj - aj - wji - ai : yi target output
 # ---------sig---------sig--------sig--------rect----
 # 4---------4-----------4----------8----------4------
+import numpy as np
 np.set_printoptions(precision=4)
 
 def sigmoid(x,deriv=False): # sigmoid
@@ -786,14 +792,9 @@ def sigmoid(x,deriv=False): # sigmoid
 
 def rect(x,deriv=False): # rectifier, might use smooth version f(x)=ln(1+exp(x)), f'=exp(x)/(1+exp(x))
     if(deriv==True):
-        if(x<0):
-            return 0
-        else:
-            return 1
-    if(x<0):
-        return 0
-    else:
-        return x
+        x[x > 0] = 1
+    x[x < 0] = 0
+    return x
 
 alpha = 1
 # solid = 1111, vertical = 1010 or 0101, diagonal = 1001 or 0110, horizontal = 1100 or 0011
@@ -815,20 +816,65 @@ thor = np.array([[0,0,0,1]]) # horizontal
 wji = np.array([[-0.2,0.1,0.1,0.1],
                 [0.1,0.1,-0.1,0.1],
                 [-0.1,0.1,0.1,0.1],
+                [0.1,0.1,-0.1,0.1],
+                [-0.1,0.1,0.1,0.1],
+                [0.1,0.1,-0.1,0.1],
+                [-0.1,0.1,0.1,0.1],
                 [0.1,0.1,0.1,0.1]])
-wkj = np.array([[0.1,0.1,0.1,0.1],
+wkj = np.array([[0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1],
+                [0.1,0.2,-0.1,-0.1,0.1,0.1,0.1,0.1],
+                [-0.1,-0.1,0.1,0.1,0.1,0.1,0.1,0.1],
+                [0.2,0.1,0.2,0.1,0.1,0.1,0.1,0.1]])
+wlk = np.array([[0.1,0.1,0.1,0.1],
+                [0.1,0.2,-0.1,-0.1],
+                [-0.1,-0.1,0.1,0.1],
+                [0.2,0.1,0.2,0.1]])
+wml = np.array([[0.1,0.1,0.1,0.1],
                 [0.1,0.2,-0.1,-0.1],
                 [-0.1,-0.1,0.1,0.1],
                 [0.2,0.1,0.2,0.1]])
 
 # training
+for i in xrange(10):
+    am = solid # input
+    yi = tsol # target output
+    inl = np.dot(am,wml)
+    al = sigmoid(inl,False)
+    ink = np.dot(al,wlk)
+    ak = sigmoid(ink,False)
+    inj = np.dot(ak,wkj)
+    aj = rect(inj,False)
+    ai = np.dot(aj,wji)
+    deltai = alpha * (yi-ai)
+    wji += deltai * aj.T
+    #wkj += alpha * np.dot(ak.T,np.dot(sigmoid(inj,True),np.dot(wji,deltai.T)))
+    wkj += (deltai * wji * sigmoid(inj,True).T * ak).T
+    #wlk += alpha * np.dot(al.T,np.dot(sigmoid(inj,True),np.dot(wji,deltai.T)))
+    #print np.dot(sigmoid(ink,True), wkj)
+    #print deltai * wji * sigmoid(inj,True).T
+    #print np.dot(np.dot(sigmoid(ink,True), wkj),(deltai * wji * sigmoid(inj,True).T)) * al.T
+    wlk += np.dot(np.dot(sigmoid(ink,True), wkj),(deltai * wji * sigmoid(inj,True).T)) * al.T
+    #print np.dot(sigmoid(inl,True), wlk)
+    #print wkj * sigmoid(ink,True).T
+    #print deltai * wji * sigmoid(inj,True).T
+    #print np.dot((deltai * wji * sigmoid(inj,True).T).T,(wkj * sigmoid(ink,True).T).T)
+    #print np.dot((deltai * wji * sigmoid(inj,True).T).T,(wkj * sigmoid(ink,True).T).T) * am.T
+    wml += np.dot((deltai * wji * sigmoid(inj,True).T).T,(wkj * sigmoid(ink,True).T).T) * am.T
+
+# test
 am = solid # input
 yi = tsol # target output
+inl = np.dot(am,wml)
+al = sigmoid(inl,False)
+ink = np.dot(al,wlk)
+ak = sigmoid(ink,False)
 inj = np.dot(ak,wkj)
-aj = sigmoid(inj,False)
-ini = np.dot(aj,wji)
-ai = sigmoid(ini,False)
-deltai = (yi-ai) * sigmoid(ini,True)
-wji += alpha * aj.T * deltai # Wji += alpha (yi-ai)g'(ini)aj 
-wkj += alpha * np.dot(ak.T,np.dot(sigmoid(inj,True),np.dot(wji,deltai.T))) # Wkj += alpha ak g'(inj) sum i Wji(yi-ai)
+aj = rect(inj,False)
+ai = np.dot(aj,wji)
+print ai
+
+
+# In[ ]:
+
+
 
