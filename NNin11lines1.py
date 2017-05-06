@@ -1013,7 +1013,7 @@ ai = np.dot(aj,wji)
 print ai
 
 
-# In[17]:
+# In[64]:
 
 # pattern recognition deep neural network
 # 1 input layer, 3 hidden layer, 1 output layer
@@ -1053,8 +1053,8 @@ def rect(x,deriv=False): # rectifier, might use smooth version f(x)=ln(1+exp(x))
     return x
 
 L = 5 # number of layers
-imax = 6000
-alpha = 1
+imax = 2
+alpha = -1
 
 def gfunc(x,l,deriv=False): # response function by layer
     if l == L-1:
@@ -1081,23 +1081,23 @@ thor = np.array([[0,0,0,1]]) # horizontal
 
 wji = []
 wji.append(np.array([[0.2,0.1,0.1,0.1],
-                [0.1,0.2,-0.1,-0.1],
-                [-0.1,-0.1,0.1,0.1],
+                [0.1,0.2,0.1,0.1],
+                [0.1,0.1,0.1,0.1],
                 [0.2,0.1,0.2,0.1]]))
 wji.append(np.array([[0.1,0.1,0.1,0.1],
-                [0.1,0.2,-0.1,-0.1],
-                [-0.1,-0.1,0.1,0.1],
+                [0.1,0.2,0.1,-0.1],
+                [0.1,-0.1,0.1,0.1],
                 [0.2,0.1,0.2,0.1]]))
 wji.append(np.array([[0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1],
-                [0.1,0.2,-0.1,-0.1,0.1,0.1,0.1,0.1],
-                [-0.1,-0.1,0.1,0.1,0.1,0.1,0.1,0.1],
+                [0.1,0.2,0.1,0.1,0.1,0.1,0.1,0.1],
+                [0.1,-0.1,0.1,0.1,0.1,0.1,0.1,0.1],
                 [0.2,0.1,0.2,0.1,0.1,0.1,0.1,0.1]]))
-wji.append(np.array([[-0.2,0.1,0.1,0.1],
+wji.append(np.array([[0.2,0.1,0.1,0.1],
                 [0.1,0.1,-0.1,0.1],
                 [-0.1,0.1,0.1,0.1],
-                [0.1,0.1,-0.1,0.1],
+                [0.1,0.1,0.1,0.1],
                 [-0.1,0.1,0.1,0.1],
-                [0.1,0.1,-0.1,0.1],
+                [0.1,0.1,0.1,0.1],
                 [-0.1,0.1,0.1,0.1],
                 [0.1,0.1,0.1,0.1]]))
 
@@ -1127,22 +1127,27 @@ deltai.append(np.array([[0,0,0,0,0,0,0,0]]))
 deltai.append(np.array([[0,0,0,0]]))
 
 for i in range(imax):
-    ai[0] = diag0 # input
-    yi = tdiag #target output     
+    ai[0] = vert0 # input
+    yi = tvert #target output     
     for l in range(1, L):
         ini[l] = np.dot(ai[l-1],wji[l-1])
         ai[l] = gfunc(ini[l],l,False)
-    #deltai[L-1] = np.multiply(sigmoid(ini[L-1],True),(yi - ai[L-1])) # component-wise multiply
-    deltai[L-1] = np.multiply(gfunc(ini[L-1],L-1,True),(yi - ai[L-1])) # component-wise multiply
+    deltai[L-1] = np.multiply(gfunc(ini[L-1],L-1,True),(ai[L-1] - yi)) # component-wise multiply
+    #print("error %s  " % ((yi - ai[L-1])))
     for l in range(L-2, -1, -1):
         deltai[l] = np.multiply(gfunc(ini[l],l,True), np.dot(wji[l], deltai[l+1].T).T)
-        wji[l] += alpha * np.multiply(ai[l+1], deltai[l].T)
+        wji[l] += alpha * np.multiply(ai[l].T, deltai[l+1])
 
-ai[0] = diag0 # input
+ai[0] = vert0 # input
 for l in range(1, L):
     ini[l] = np.dot(ai[l-1],wji[l-1])
-    ai[l] = gfunc(ini[l],l,False) 
-print str(ai[4])
+    ai[l] = gfunc(ini[l],l,False)
+print str(ai[L-1])
+
+
+# In[ ]:
+
+
 
 
 # In[ ]:
