@@ -67,7 +67,7 @@ for j in xrange(5000):
 print "Result:" + str(l2)
 
 
-# In[14]:
+# In[2]:
 
 import numpy as np
 
@@ -95,6 +95,8 @@ for l in range(5,1,-1):
     print l
     
 print np.multiply([[1,2]], [[2,3]])
+
+print np.random.random((3,4))
 
 
 # In[5]:
@@ -1013,7 +1015,7 @@ ai = np.dot(aj,wji)
 print ai
 
 
-# In[64]:
+# In[42]:
 
 # pattern recognition deep neural network
 # 1 input layer, 3 hidden layer, 1 output layer
@@ -1053,7 +1055,7 @@ def rect(x,deriv=False): # rectifier, might use smooth version f(x)=ln(1+exp(x))
     return x
 
 L = 5 # number of layers
-imax = 2
+imax = 100
 alpha = -1
 
 def gfunc(x,l,deriv=False): # response function by layer
@@ -1080,26 +1082,10 @@ tdiag = np.array([[0,0,1,0]]) # diagonal
 thor = np.array([[0,0,0,1]]) # horizontal
 
 wji = []
-wji.append(np.array([[0.2,0.1,0.1,0.1],
-                [0.1,0.2,0.1,0.1],
-                [0.1,0.1,0.1,0.1],
-                [0.2,0.1,0.2,0.1]]))
-wji.append(np.array([[0.1,0.1,0.1,0.1],
-                [0.1,0.2,0.1,-0.1],
-                [0.1,-0.1,0.1,0.1],
-                [0.2,0.1,0.2,0.1]]))
-wji.append(np.array([[0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1],
-                [0.1,0.2,0.1,0.1,0.1,0.1,0.1,0.1],
-                [0.1,-0.1,0.1,0.1,0.1,0.1,0.1,0.1],
-                [0.2,0.1,0.2,0.1,0.1,0.1,0.1,0.1]]))
-wji.append(np.array([[0.2,0.1,0.1,0.1],
-                [0.1,0.1,-0.1,0.1],
-                [-0.1,0.1,0.1,0.1],
-                [0.1,0.1,0.1,0.1],
-                [-0.1,0.1,0.1,0.1],
-                [0.1,0.1,0.1,0.1],
-                [-0.1,0.1,0.1,0.1],
-                [0.1,0.1,0.1,0.1]]))
+wji.append(0.2*np.random.random((4,4))-0.05)
+wji.append(0.2*np.random.random((4,4))-0.05)
+wji.append(0.2*np.random.random((4,8))-0.05)
+wji.append(0.2*np.random.random((8,4))-0.05)
 
 ini = []
 ai = []
@@ -1127,6 +1113,129 @@ deltai.append(np.array([[0,0,0,0,0,0,0,0]]))
 deltai.append(np.array([[0,0,0,0]]))
 
 for i in range(imax):
+    ai[0] = solid # input
+    yi = tsol #target output     
+    for l in range(1, L):
+        ini[l] = np.dot(ai[l-1],wji[l-1])
+        ai[l] = gfunc(ini[l],l,False)
+    deltai[L-1] = np.multiply(gfunc(ini[L-1],L-1,True),(ai[L-1] - yi)) # component-wise multiply
+    #print("error %s  " % ((yi - ai[L-1])))
+    for l in range(L-2, -1, -1):
+        deltai[l] = np.multiply(gfunc(ini[l],l,True), np.dot(wji[l], deltai[l+1].T).T)
+        wji[l] += alpha * np.multiply(ai[l].T, deltai[l+1])
+
+ai[0] = solid # input
+for l in range(1, L):
+    ini[l] = np.dot(ai[l-1],wji[l-1])
+    ai[l] = gfunc(ini[l],l,False)
+print str(ai[L-1])
+
+
+# In[15]:
+
+# pattern recognition deep neural network
+# 1 input layer, 3 hidden layer, 1 output layer
+# am - wml - al - wlk - ak - wkj - aj - wji - ai : yi target output
+# ---------sig---------sig--------sig--------rect----
+# 4---------4-----------4----------8----------4------
+
+# repeat
+#   for each e in examples
+#      for each node j in input layer (l=0): aj = xj
+#      for l=1 to L-1:
+#        ini = sum j: wji aj
+#        ai = g(ini)
+#      for each node i in output layer (l=L-1)
+#        deltai = g'(ini) (yi(e)-ai)
+#      for l=L-2 to 0:
+#        for each node j in layer l:
+#          deltaj = g'(inj) sum i: wji deltai
+#          for each node i in layer l+1:
+#            wji += alpha aj deltai
+# until stopping criterion reached
+
+import numpy as np
+np.set_printoptions(precision=4)
+
+def sigmoid(x,deriv=False): # sigmoid
+    if(deriv==True):
+        return x*(1-x)
+    np.putmask(x, x > 100, 100) # limit array values of x (np.putmask(a, a >= m, m - 1))
+    np.putmask(x, x < -100, -100)
+    return 1/(1+np.exp(-x))
+
+def rect(x,deriv=False): # rectifier, might use smooth version f(x)=ln(1+exp(x)), f'=exp(x)/(1+exp(x))
+    if(deriv==True):
+        x[x > 0] = 1
+    x[x < 0] = 0
+    return x
+
+L = 5 # number of layers
+imax = 100
+alpha = -1
+
+def gfunc(x,l,deriv=False): # response function by layer
+    if l == L-1:
+        x = rect(ini[l],False)
+    else:
+        x = sigmoid(ini[l],False)
+    return x   
+
+# solid = 1111, vertical = 1010 or 0101, diagonal = 1001 or 0110, horizontal = 1100 or 0011
+# bias as last element
+solid = np.array([[1,1,1,1]]) # solid = 1111
+vert0 = np.array([[1,0,1,0]]) # vertical = 1010
+vert1 = np.array([[0,1,0,1]]) # vertical = 0101
+diag0 = np.array([[1,0,0,1]]) # diagonal = 1001
+diag1 = np.array([[0,1,1,0]]) # diagonal = 0110
+hor0 = np.array([[1,1,0,0]]) # horizontal = 1100
+hor1 = np.array([[0,0,1,1]]) # horizontal = 0011
+
+# target outputs
+tsol = np.array([[1,0,0,0]]) # solid
+tvert = np.array([[0,1,0,0]]) # vertical
+tdiag = np.array([[0,0,1,0]]) # diagonal
+thor = np.array([[0,0,0,1]]) # horizontal
+
+wji = []
+wji.append(0.2*np.random.random((4,5))-0.05) # bias on 2nd axis
+wji.append(0.2*np.random.random((5,5))-0.05) # bias on 1st+2nd axis
+wji.append(0.2*np.random.random((5,9))-0.05) # bias on 1st+2nd axis
+wji.append(0.2*np.random.random((9,4))-0.05) # bias on 1st axis
+# bias should be init to 0
+wji[0][:,4] = 0 # b[1,:]...2nd row, b[:,1]...2nd column
+wji[1][:,4] = 0
+wji[1][4,:] = 0
+wji[2][:,8] = 0
+wji[2][4,:] = 0
+wji[3][4,:] = 0
+
+ini = []
+ai = []
+deltai = []
+
+# init ai
+ai.append(np.array([[0,0,0,0]])) # 0
+ai.append(np.array([[0,0,0,0,0]])) # 1 + bias
+ai.append(np.array([[0,0,0,0,0]])) # 2 + bias
+ai.append(np.array([[0,0,0,0,0,0,0,0,0]])) # 3 + bias
+ai.append(np.array([[0,0,0,0]])) # 4
+
+# init ini
+ini.append(np.array([[0,0,0,0]]))
+ini.append(np.array([[0,0,0,0,0]]))
+ini.append(np.array([[0,0,0,0,0]]))
+ini.append(np.array([[0,0,0,0,0,0,0,0,0]]))
+ini.append(np.array([[0,0,0,0]]))
+
+# init deltai
+deltai.append(np.array([[0,0,0,0]]))
+deltai.append(np.array([[0,0,0,0,0]]))
+deltai.append(np.array([[0,0,0,0,0]]))
+deltai.append(np.array([[0,0,0,0,0,0,0,0,0]]))
+deltai.append(np.array([[0,0,0,0]]))
+
+for i in range(imax):
     ai[0] = vert0 # input
     yi = tvert #target output     
     for l in range(1, L):
@@ -1143,11 +1252,6 @@ for l in range(1, L):
     ini[l] = np.dot(ai[l-1],wji[l-1])
     ai[l] = gfunc(ini[l],l,False)
 print str(ai[L-1])
-
-
-# In[ ]:
-
-
 
 
 # In[ ]:
