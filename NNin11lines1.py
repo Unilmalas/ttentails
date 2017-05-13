@@ -110,7 +110,9 @@ r[r < 0] = 0
 print r
 
 
-# In[14]:
+# In[1]:
+
+# examples from CS231 - Andrej Karpathy
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -131,7 +133,9 @@ plt.scatter(X[:, 0], X[:, 1], c=y, s=40, cmap=plt.cm.Spectral)
 plt.show()
 
 
-# In[15]:
+# In[2]:
+
+# examples from CS231 - Andrej Karpathy
 
 #Train a Linear Classifier
 
@@ -186,40 +190,44 @@ predicted_class = np.argmax(scores, axis=1)
 print 'training accuracy: %.2f' % (np.mean(predicted_class == y))
 
 
-# In[1]:
+# In[4]:
+
+# examples from CS231 - Andrej Karpathy
 
 # initialize parameters randomly
 h = 150 # size of hidden layer
-W = 0.01 * np.random.randn(D,h)
-b = np.zeros((1,h))
-W2 = 0.01 * np.random.randn(h,K)
-b2 = np.zeros((1,K))
+W = 0.01 * np.random.randn(D,h) # weights input to hidden; D = 2 dimensions
+b = np.zeros((1,h)) # bias input to hidden, zero-vector 1 line, h columns
+W2 = 0.01 * np.random.randn(h,K) # weights hidden to output, K = 3 classes
+b2 = np.zeros((1,K)) # bias hidden to output
 
 # some hyperparameters
 step_size = 1e-0
 reg = 1e-3 # regularization strength
 
 # gradient descent loop
-num_examples = X.shape[0]
-for i in xrange(10000):
+num_examples = X.shape[0] # size of array: data matrix
+for i in xrange(5000):
   
   # evaluate class scores, [N x K]
   hidden_layer = np.maximum(0, np.dot(X, W) + b) # note, ReLU activation
-  scores = np.dot(hidden_layer, W2) + b2
+  scores = np.dot(hidden_layer, W2) + b2 # compute class scores: hidden to output
   
   # compute the class probabilities
-  exp_scores = np.exp(scores)
-  probs = exp_scores / np.sum(exp_scores, axis=1, keepdims=True) # [N x K]
+  exp_scores = np.exp(scores) # get unnormalized probabilities
+  probs = exp_scores / np.sum(exp_scores, axis=1, keepdims=True) # [N x K], normalize them for each example
+  # now have an array probs of size [300 x 3], where each row now contains the class probabilities
   
   # compute the loss: average cross-entropy loss and regularization
-  corect_logprobs = -np.log(probs[range(num_examples),y])
-  data_loss = np.sum(corect_logprobs)/num_examples
+  correct_logprobs = -np.log(probs[range(num_examples),y]) # correct_logprobs is a 1D array of just
+  # the probabilities assigned to the correct classes for each example
+  data_loss = np.sum(correct_logprobs)/num_examples # average cross-entropy loss and regularization
   reg_loss = 0.5*reg*np.sum(W*W) + 0.5*reg*np.sum(W2*W2)
   loss = data_loss + reg_loss
   if i % 1000 == 0:
     print "iteration %d: loss %f" % (i, loss)
   
-  # compute the gradient on scores
+  # compute the gradient on scores and backpropagate
   dscores = probs
   dscores[range(num_examples),y] -= 1
   dscores /= num_examples
@@ -247,7 +255,7 @@ for i in xrange(10000):
   b2 += -step_size * db2
 
 
-# In[12]:
+# In[14]:
 
 # evaluate training set accuracy
 hidden_layer = np.maximum(0, np.dot(X, W) + b)
@@ -256,7 +264,7 @@ predicted_class = np.argmax(scores, axis=1)
 print 'training accuracy: %.2f' % (np.mean(predicted_class == y))
 
 
-# In[17]:
+# In[5]:
 
 # plot the resulting classifier
 h = 0.02
@@ -1131,7 +1139,7 @@ for l in range(1, L):
 print str(ai[L-1])
 
 
-# In[15]:
+# In[12]:
 
 # pattern recognition deep neural network
 # 1 input layer, 3 hidden layer, 1 output layer
@@ -1171,15 +1179,75 @@ def rect(x,deriv=False): # rectifier, might use smooth version f(x)=ln(1+exp(x))
     return x
 
 L = 5 # number of layers
-imax = 100
-alpha = -1
+imax = 3
+alpha = 1
 
 def gfunc(x,l,deriv=False): # response function by layer
     if l == L-1:
         x = rect(ini[l],False)
     else:
         x = sigmoid(ini[l],False)
-    return x   
+    return x  
+
+def L_i(x, y, W):
+  """
+  unvectorized version. Compute the multiclass svm loss for a single example (x,y)
+  - x is a column vector representing an image (e.g. 3073 x 1 in CIFAR-10)
+    with an appended bias dimension in the 3073-rd position (i.e. bias trick)
+  - y is an integer giving index of correct class (e.g. between 0 and 9 in CIFAR-10)
+  - W is the weight matrix (e.g. 10 x 3073 in CIFAR-10)
+  """
+  delta = 1.0 # see notes about delta later in this section
+  scores = W.dot(x) # scores becomes of size 10 x 1, the scores for each class
+  correct_class_score = scores[y]
+  D = W.shape[0] # number of classes, e.g. 10
+  loss_i = 0.0
+  for j in xrange(D): # iterate over all wrong classes
+    if j == y:
+      # skip for the true class to only loop over incorrect classes
+      continue
+    # accumulate loss for the i-th example
+    loss_i += max(0, scores[j] - correct_class_score + delta)
+  return loss_i
+
+def L_i_vectorized(x, y, W):
+  """
+  A faster half-vectorized implementation. half-vectorized
+  refers to the fact that for a single example the implementation contains
+  no for loops, but there is still one loop over the examples (outside this function)
+  """
+  delta = 1.0
+  scores = W.dot(x)
+  # compute the margins for all classes in one vector operation
+  margins = np.maximum(0, scores - scores[y] + delta)
+  # on y-th position scores[y] - scores[y] canceled and gave delta. We want
+  # to ignore the y-th position and only consider margin on max wrong class
+  margins[y] = 0
+  loss_i = np.sum(margins)
+  return loss_i
+
+def L_i_fullvec(X, y, W):
+  """
+  fully-vectorized implementation :
+  - X holds all the training examples as columns (e.g. 3073 x 50,000 in CIFAR-10)
+  - y is array of integers specifying correct class (e.g. 50,000-D array)
+  - W are weights (e.g. 10 x 3073)
+  """
+  # evaluate loss over all examples in X without using any for loops
+  # left as exercise to reader in the assignment
+
+def softmax(y, a):
+    return -np.log(np.exp(y) / np.sum(np.exp(a)))
+
+def totloss(y, a, w):
+    reg = 0.001
+    data_loss = np.sum(softmax(y, a))/len(y)
+    reg_loss = 0.5*reg*np.sum(w*w)
+    loss = data_loss + reg_loss
+    return loss
+
+def dscore(y, a):
+    return ((np.exp(y) / np.sum(np.exp(a)))-1) / len(y)
 
 # solid = 1111, vertical = 1010 or 0101, diagonal = 1001 or 0110, horizontal = 1100 or 0011
 # bias as last element
@@ -1241,17 +1309,44 @@ for i in range(imax):
     for l in range(1, L):
         ini[l] = np.dot(ai[l-1],wji[l-1])
         ai[l] = gfunc(ini[l],l,False)
-    deltai[L-1] = np.multiply(gfunc(ini[L-1],L-1,True),(ai[L-1] - yi)) # component-wise multiply
-    #print("error %s  " % ((yi - ai[L-1])))
+    #deltai[L-1] = np.multiply(gfunc(ini[L-1],L-1,True),(ai[L-1] - yi)) # component-wise multiply
+    deltai[L-1] = np.multiply(gfunc(ini[L-1],L-1,True),dscore(yi, ai[L-1]))
+    #print dscore(yi, ai[L-1])
     for l in range(L-2, -1, -1):
         deltai[l] = np.multiply(gfunc(ini[l],l,True), np.dot(wji[l], deltai[l+1].T).T)
         wji[l] += alpha * np.multiply(ai[l].T, deltai[l+1])
+        #print deltai[l]
 
 ai[0] = vert0 # input
 for l in range(1, L):
     ini[l] = np.dot(ai[l-1],wji[l-1])
     ai[l] = gfunc(ini[l],l,False)
 print str(ai[L-1])
+
+
+# In[9]:
+
+# forward pass
+W = np.random.randn(2, 3)
+X = np.random.randn(3, 2)
+D = W.dot(X)
+
+# now suppose we had the gradient on D from above in the circuit
+dD = np.random.randn(*D.shape) # same shape as D
+dW = dD.dot(X.T) #.T gives the transpose of the matrix
+dX = W.T.dot(dD)
+
+print dX
+
+
+# In[10]:
+
+# forward-pass of a 3-layer neural network:
+f = lambda x: 1.0/(1.0 + np.exp(-x)) # activation function (use sigmoid)
+x = np.random.randn(3, 1) # random input vector of three numbers (3x1)
+h1 = f(np.dot(W1, x) + b1) # calculate first hidden layer activations (4x1)
+h2 = f(np.dot(W2, h1) + b2) # calculate second hidden layer activations (4x1)
+out = np.dot(W3, h2) + b3 # output neuron (1x1)
 
 
 # In[ ]:
